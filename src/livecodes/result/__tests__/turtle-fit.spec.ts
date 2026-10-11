@@ -41,10 +41,45 @@ describe('handleTurtleFit', () => {
     expect(document.querySelectorAll('#__livecodes_turtle_fit__').length).toBe(1);
   });
 
-  test('style caps the width', () => {
-    expect(document.getElementById('__livecodes_turtle_fit__')?.textContent).toContain(
-      'max-width:100% !important',
-    );
+  const setPane = (w: number, h: number) => {
+    Object.defineProperty(window, 'innerWidth', { value: w, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: h, configurable: true });
+    window.dispatchEvent(new Event('resize'));
+  };
+
+  test('shrinks to fit a narrow pane, centred', async () => {
+    setPane(410, 530);
+    const svg = makeSvg('turtle-canvas');
+    document.body.appendChild(svg);
+    await tick();
+    expect(svg.style.width).toBe('410px');
+    expect(svg.style.height).toBe('410px');
+    expect(svg.style.left).toBe('0px');
+    expect(svg.style.top).toBe('60px');
+  });
+
+  test('grows past 500 and refits on resize without a redraw', async () => {
+    setPane(410, 530);
+    const svg = makeSvg('turtle-canvas');
+    document.body.appendChild(svg);
+    await tick();
+    setPane(900, 700);
+    expect(svg.style.width).toBe('700px');
+    expect(svg.style.left).toBe('100px');
+    expect(svg.style.top).toBe('0px');
+    setPane(410, 530);
+    expect(svg.style.width).toBe('410px');
+  });
+
+  test('keeps the drawing shape for a non-square canvas', async () => {
+    setPane(1000, 500);
+    const svg = makeSvg('turtle-canvas');
+    svg.setAttribute('width', '400');
+    svg.setAttribute('height', '200');
+    document.body.appendChild(svg);
+    await tick();
+    expect(svg.style.width).toBe('1000px');
+    expect(svg.style.height).toBe('500px');
   });
 
   test('never changes width', async () => {
