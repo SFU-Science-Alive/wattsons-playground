@@ -3,16 +3,52 @@ name: Deploy Worker
 on:
   push:
     branches:
-      - develop
+      - run/workbench
   workflow_dispatch:
 
-concurrency:
-  group: deploy-worker
-  cancel-in-progress: false
-
 jobs:
-  deploy:
+  deploy-staging:
+    # The ref decides: any ref except develop deploys staging.
+    if: github.ref != 'refs/heads/develop'
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-worker-staging
+      cancel-in-progress: false
+    env:
+      NODE_OPTIONS: "--max_old_space_size=8192"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build:cloudflare
+
+      - name: Mark staging noindex
+        run: |
+          printf '\n/*\n  X-Robots-Tag: noindex\n' >> build/_headers
+
+      - name: Deploy
+        run: npx wrangler deploy --env staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Live deploys are manual, from develop only (Thursday-noon rule, hello-wattson#109).
+  deploy-live:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-worker-live
+      cancel-in-progress: false
     env:
       NODE_OPTIONS: "--max_old_space_size=8192"
     steps:

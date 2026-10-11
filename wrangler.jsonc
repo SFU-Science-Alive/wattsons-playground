@@ -11,5 +11,17 @@
   ],
   "assets": {
     "directory": "build"
+  },
+  "env": {
+    // Bindings are not inherited by environments: repeat every binding added at the top level here.
+    // Staging has no custom domain; host is the workers.dev URL.
+    "staging": {
+      "name": "hellowattson-playground-staging",
+      "workers_dev": true,
+      "routes": [],
+      "assets": {
+        "directory": "build"
+      }
+    }
   }
 }

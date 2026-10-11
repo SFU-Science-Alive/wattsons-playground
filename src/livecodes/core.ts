@@ -159,6 +159,8 @@ import {
   stringify,
   toDataUrl,
 } from './utils';
+// Science Alive fork (#300): which embed parents may save activity work
+import { getEmbedParentOrigin, isSaveAllowedParent } from './utils/embed-parent';
 // Wattson (#129): underline the failing line after a Python run error
 import { parsePythonError } from './utils/python-error';
 import {
@@ -5373,8 +5375,14 @@ const initializePlayground = async (
     window.history.replaceState(null, '', url.href);
   }
   await initializeStores(stores, isEmbed);
-  // Science Alive fork (#208): keep the projects store so simple-mode activity links save
-  if (params.activityId && (initialConfig.mode === 'simple' || params.mode === 'simple')) {
+  // Science Alive fork (#208, #300): keep the projects store so activity links save:
+  // top-level simple-mode links, and SDK embeds whose parent origin is on the allowlist
+  const embedParentOrigin = getEmbedParentOrigin(parent);
+  const activitySaveAllowed =
+    embedParentOrigin === undefined
+      ? initialConfig.mode === 'simple' || params.mode === 'simple'
+      : isSaveAllowedParent(embedParentOrigin);
+  if (params.activityId && activitySaveAllowed) {
     await initializeActivityStore(stores);
   }
 

@@ -229,3 +229,34 @@ export const handleScrollPosition = () => {
     });
   }
 };
+
+export const TURTLE_FIT_CSS =
+  '#turtle-canvas{max-width:100% !important;height:auto !important;display:block}';
+
+export const fitTurtleCanvas = (svg: Element | null): void => {
+  if (!svg) return;
+  const w = Number(svg.getAttribute('width'));
+  const h = Number(svg.getAttribute('height'));
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+};
+
+export const handleTurtleFit = (doc: Document = document): MutationObserver => {
+  if (!doc.getElementById('__livecodes_turtle_fit__')) {
+    const style = doc.createElement('style');
+    style.id = '__livecodes_turtle_fit__';
+    style.textContent = TURTLE_FIT_CSS;
+    doc.head.appendChild(style);
+  }
+  fitTurtleCanvas(doc.getElementById('turtle-canvas'));
+  const observer = new MutationObserver(() => {
+    fitTurtleCanvas(doc.getElementById('turtle-canvas'));
+  });
+  observer.observe(doc.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['width', 'height'],
+  });
+  return observer;
+};

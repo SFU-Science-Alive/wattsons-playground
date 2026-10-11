@@ -1,4 +1,10 @@
-import { handleEval, handleResize, handleScrollPosition, proxyConsole } from './utils';
+import {
+  handleEval,
+  handleResize,
+  handleScrollPosition,
+  handleTurtleFit,
+  proxyConsole,
+} from './utils';
 
 (() => {
   (window as any).livecodes = (window as any).livecodes || {};
@@ -10,6 +16,7 @@ import { handleEval, handleResize, handleScrollPosition, proxyConsole } from './
   handleEval();
   handleResize();
   handleScrollPosition();
+  handleTurtleFit();
 
   window.addEventListener('message', function (event) {
     if (event.data.styles != null) {
