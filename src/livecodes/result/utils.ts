@@ -246,10 +246,11 @@ export const fitTurtleCanvas = (svg: Element | null): void => {
   const sw = w * scale;
   const sh = h * scale;
   const style = (svg as SVGElement).style;
-  style.width = `${sw}px`;
-  style.height = `${sh}px`;
-  style.left = `${(pw - sw) / 2}px`;
-  style.top = `${(ph - sh) / 2}px`;
+  // 'important' beats Brython's SMIL <animate attributeName="width"> that pins the width
+  style.setProperty('width', `${sw}px`, 'important');
+  style.setProperty('height', `${sh}px`, 'important');
+  style.setProperty('left', `${(pw - sw) / 2}px`, 'important');
+  style.setProperty('top', `${(ph - sh) / 2}px`, 'important');
 };
 
 export const handleTurtleFit = (doc: Document = document): MutationObserver => {
