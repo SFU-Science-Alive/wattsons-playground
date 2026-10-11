@@ -56,6 +56,8 @@ describe('handleTurtleFit', () => {
     expect(svg.style.height).toBe('410px');
     expect(svg.style.left).toBe('0px');
     expect(svg.style.top).toBe('60px');
+    expect(svg.style.getPropertyPriority('width')).toBe('important');
+    expect(svg.style.getPropertyPriority('height')).toBe('important');
   });
 
   test('grows past 500 and refits on resize without a redraw', async () => {
