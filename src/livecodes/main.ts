@@ -4,8 +4,8 @@ import { customEvents } from './events/custom-events';
 import appHTML from './html/app.html?raw';
 import type { API, CDN, Config, CustomEvents, EmbedOptions } from './models';
 import { modulesService } from './services/modules';
-import { isInIframe } from './utils/utils';
-import { codeMirrorBaseUrl, creltUrl, esModuleShimsPath } from './vendors';
+import { isInIframe, isMobile } from './utils/utils';
+import { codeMirrorBaseUrl, creltUrl, esModuleShimsPath, monacoPath } from './vendors';
 
 export type { API, Config };
 
@@ -78,6 +78,23 @@ export const livecodes = (container: string, config: Partial<Config> = {}): Prom
     const loadApp = async () => {
       const appCDN = await modulesService.checkCDNs(esModuleShimsPath, params.get('appCDN') as CDN);
 
+      // Start downloading Monaco early when the default editor choice will be Monaco.
+      // ponytail: mirrors selectEditor (editor/create-editor.ts) by hand; cannot see a config
+      // loaded later from the URL hash/activityId or the stored user setting. Upgrade path:
+      // extract selectEditor into a dependency-free module shared by both.
+      const mode = config.mode ?? params.get('mode');
+      const requestedEditor = config.editor ?? params.get('editor');
+      const usesMonaco =
+        !isHeadless &&
+        (requestedEditor === 'monaco' ||
+          (!isLite &&
+            !isMobile() &&
+            !['lite', 'simple', 'codeblock', 'result'].includes(mode ?? '') &&
+            !['codemirror', 'codejar'].includes(requestedEditor ?? '')));
+      const monacoPreload = usesMonaco
+        ? `<link rel="modulepreload" href="${modulesService.getUrl(monacoPath + 'monaco.js', appCDN as CDN)}" />`
+        : '';
+
       const supportsImportMaps = HTMLScriptElement.supports
         ? HTMLScriptElement.supports('importmap')
         : false;
@@ -95,6 +112,7 @@ export const livecodes = (container: string, config: Partial<Config> = {}): Prom
           .replace(/{{baseUrl}}/g, baseUrl)
           .replace(/{{script}}/g, scriptFile)
           .replace(/{{appCDN}}/g, appCDN)
+          .replace(/{{monacoPreload}}/g, monacoPreload)
           .replace(/{{esModuleShimsUrl}}/g, modulesService.getUrl(esModuleShimsPath, appCDN as CDN))
           .replace(
             /{{codemirrorModule}}/g,

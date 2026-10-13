@@ -12,6 +12,28 @@
   ! cache-control
   cache-control: public, max-age=14400, must-revalidate
 
+# Font files never change in place (renamed if they do); must come after the rule above to win.
+# One rule per file so fonts.css (a stylesheet) keeps the 4 h rule.
+/livecodes/assets/fonts/Fraunces-Italic-Variable.woff2
+  ! cache-control
+  cache-control: public, max-age=2592000
+
+/livecodes/assets/fonts/Fraunces-Variable.woff2
+  ! cache-control
+  cache-control: public, max-age=2592000
+
+/livecodes/assets/fonts/JetBrainsMono-Italic-Variable.woff2
+  ! cache-control
+  cache-control: public, max-age=2592000
+
+/livecodes/assets/fonts/JetBrainsMono-Variable.woff2
+  ! cache-control
+  cache-control: public, max-age=2592000
+
+/livecodes/assets/fonts/Sen-Variable.woff2
+  ! cache-control
+  cache-control: public, max-age=2592000
+
 # Cloudflare Web Analytics injects a module beacon into HTML responses. In the
 # /app iframe shell that makes Firefox ignore the app's import map (breaks CodeMirror).
 /app
