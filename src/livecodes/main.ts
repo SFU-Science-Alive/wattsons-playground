@@ -91,8 +91,14 @@ export const livecodes = (container: string, config: Partial<Config> = {}): Prom
             !isMobile() &&
             !['lite', 'simple', 'codeblock', 'result'].includes(mode ?? '') &&
             !['codemirror', 'codejar'].includes(requestedEditor ?? '')));
+      // Also preload the real payload (monaco.js is a stub): load-monaco.js, the editor bundle,
+      // and its CSS (load-monaco requests it with crossOrigin="anonymous", so match that).
+      const monacoUrl = (file: string) => modulesService.getUrl(monacoPath + file, appCDN as CDN);
       const monacoPreload = usesMonaco
-        ? `<link rel="modulepreload" href="${modulesService.getUrl(monacoPath + 'monaco.js', appCDN as CDN)}" />`
+        ? `<link rel="modulepreload" href="${monacoUrl('monaco.js')}" />` +
+          `<link rel="modulepreload" href="${monacoUrl('load-monaco.js')}" />` +
+          `<link rel="modulepreload" href="${monacoUrl('dist/monaco-editor.js')}" />` +
+          `<link rel="preload" as="style" crossorigin="anonymous" href="${monacoUrl('dist/monaco-editor.css')}" />`
         : '';
 
       const supportsImportMaps = HTMLScriptElement.supports
