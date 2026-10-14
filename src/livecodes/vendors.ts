@@ -330,7 +330,8 @@ export const minizincUrl = /* @__PURE__ */ getUrl('minizinc@4.4.4/dist/minizinc.
 
 export const mjmlUrl = /* @__PURE__ */ getUrl('mjml-browser@4.15.3/lib/index.js');
 
-export const monacoBaseUrl = /* @__PURE__ */ getUrl('@live-codes/monaco-editor@0.3.1/');
+export const monacoPath = '@live-codes/monaco-editor@0.3.1/';
+export const monacoBaseUrl = /* @__PURE__ */ getUrl(monacoPath);
 
 export const monacoEmacsUrl = /* @__PURE__ */ getUrl('monaco-emacs@0.3.0/dist/monaco-emacs.js');
 
