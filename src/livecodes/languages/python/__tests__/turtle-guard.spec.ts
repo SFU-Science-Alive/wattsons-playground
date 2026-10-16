@@ -27,4 +27,11 @@ describe('python turtle guard (#459)', () => {
     expect(turtleGuardPython).toContain('tg.mainloop = done');
     expect(turtleGuardPython).toContain("_SKIP = ('done', 'mainloop', 'exitonclick', 'bye')");
   });
+
+  test('starts the traceback at the caller, not the wrapper (#568)', () => {
+    expect(turtleGuardPython).toContain("setattr(err, '$frame_obj', b.frame_obj.prev)");
+    expect(turtleGuardPython).toContain(
+      "setattr(err, '$linenums', b.make_linenums(b.frame_obj.prev))",
+    );
+  });
 });
