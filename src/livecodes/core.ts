@@ -1293,15 +1293,31 @@ const run = async (editorId?: EditorId, runTests?: boolean) => {
   }
 };
 
-// Wattson (#570): a user Run before init finishes would be overwritten by init's
-// own createIframe/applyConfig; queue one run and perform it when init completes.
-let pendingEarlyRun = false;
+// Wattson (#570): a user Run before init settles would be overwritten by init's own
+// createIframe/applyConfig. Wait for init (success or failure), then run once; several
+// early presses share one promise. If autoupdate is on, init's own deferred run covers it.
+let initSettled = false;
+let settleInit: () => void = () => undefined;
+const initSettledPromise = new Promise<void>((resolve) => {
+  settleInit = () => {
+    initSettled = true;
+    resolve();
+  };
+});
+let earlyRun: Promise<void> | undefined;
 const runWhenReady = async () => {
-  if (!initialized) {
-    pendingEarlyRun = true;
+  if (initSettled) {
+    await run();
     return;
   }
-  await run();
+  setLoading(true);
+  earlyRun ??= initSettledPromise.then(async () => {
+    if (getConfig().autoupdate) return;
+    // let applyConfig's compiler.load().then(setLoading(false)) fire before we start
+    await compiler.load(getEditorLanguages(), getConfig()).catch(() => undefined);
+    await run();
+  });
+  await earlyRun;
 };
 
 const runTests = () => run(/* editorId= */ undefined, /* runTests= */ true);
@@ -5452,11 +5468,7 @@ const initializePlayground = async (
       await applyConfig(getConfig(), /* reload = */ false);
     }
     initialized = true;
-    if (pendingEarlyRun) {
-      pendingEarlyRun = false;
-      await run();
-    }
-  });
+  }).finally(settleInit);
   configureEmmet(getConfig());
   setAppLanguage();
 };
