@@ -897,7 +897,7 @@ const changeLanguage = async (language: Language, value?: string, isUpdate = fal
 const registerRun = (editorId: EditorId, editors: Editors) => {
   const editor = editors[editorId];
   editor.addKeyBinding('run', editor.keyCodes.ShiftEnter, async () => {
-    await run();
+    await runWhenReady();
   });
 };
 
@@ -1291,6 +1291,17 @@ const run = async (editorId?: EditorId, runTests?: boolean) => {
     document.dispatchEvent(runEvent);
     parent.dispatchEvent(runEvent);
   }
+};
+
+// Wattson (#570): a user Run before init finishes would be overwritten by init's
+// own createIframe/applyConfig; queue one run and perform it when init completes.
+let pendingEarlyRun = false;
+const runWhenReady = async () => {
+  if (!initialized) {
+    pendingEarlyRun = true;
+    return;
+  }
+  await run();
 };
 
 const runTests = () => run(/* editorId= */ undefined, /* runTests= */ true);
@@ -2770,7 +2781,7 @@ const handleCommandMenu = async () => {
 const handleRunButton = () => {
   const handleRun = async () => {
     split?.show('output');
-    await run();
+    await runWhenReady();
   };
   eventsManager.addEventListener(UI.getRunButton(), 'click', handleRun);
 };
@@ -5441,6 +5452,10 @@ const initializePlayground = async (
       await applyConfig(getConfig(), /* reload = */ false);
     }
     initialized = true;
+    if (pendingEarlyRun) {
+      pendingEarlyRun = false;
+      await run();
+    }
   });
   configureEmmet(getConfig());
   setAppLanguage();
@@ -5634,7 +5649,7 @@ const createApi = (): API => {
   const call = <T>(fn: () => Promise<T>) => (!isDestroyed ? fn() : reject());
   const callSync = <T>(fn: () => T) => (!isDestroyed ? fn() : throwError());
   return {
-    run: () => call(() => run()),
+    run: () => call(() => runWhenReady()),
     format: (allEditors) => call(() => format(allEditors)),
     getShareUrl: (shortUrl) => call(() => apiGetShareUrl(shortUrl)),
     getConfig: (contentOnly) => call(() => apiGetConfig(contentOnly)),
