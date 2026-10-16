@@ -279,7 +279,9 @@ const loadStyles = () =>
         ].map((url) => loadStylesheet(url, undefined, '#app-styles')),
       );
 
-let lastRun = { time: 0, result: '' };
+// Wattson (#570): only the newest full reload posts its result. Upstream skipped a result
+// equal to the last one within 500 ms, which left a fresh frame blank when Run followed init.
+let iframeLoadId = 0;
 const createIframe = (container: HTMLElement, result = '', service = sandboxService) =>
   new Promise((resolve, reject) => {
     if (!container) {
@@ -351,16 +353,16 @@ const createIframe = (container: HTMLElement, result = '', service = sandboxServ
     } else {
       // full page reload
       let loaded = false;
+      const loadId = ++iframeLoadId;
       eventsManager.addEventListener(iframe, 'load', function onload() {
         eventsManager.removeEventListener(iframe, 'load', onload);
 
-        if (!result || loaded || (lastRun.result === result && Date.now() - lastRun.time < 500)) {
+        if (!result || loaded || loadId !== iframeLoadId) {
           resolve('loaded');
           return; // prevent infinite loop
         }
 
         iframe.contentWindow?.postMessage({ result }, service.getOrigin());
-        lastRun = { time: Date.now(), result };
         loaded = true;
         resolve('loaded');
       });
