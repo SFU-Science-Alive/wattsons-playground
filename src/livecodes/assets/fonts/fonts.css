@@ -1,8 +1,8 @@
-/* Self-hosted Science Alive fonts (OFL), copied from hello-wattson/public/fonts. No CDN.
+/* Self-hosted Science Alive fonts (OFL), Latin subset (U+0000-00FF, U+2010-2027, U+20AC) as woff2, copied from hello-wattson/public/fonts. No CDN.
    Loaded at startup via fontJetbrainsMonoUrl (core.ts); relative urls resolve next to this file. */
 @font-face {
   font-family: 'Sen';
-  src: url('./sen.ttf') format('truetype');
+  src: url('./Sen-Variable.woff2') format('woff2');
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -10,7 +10,7 @@
 
 @font-face {
   font-family: 'Fraunces';
-  src: url('./Fraunces-VariableFont_SOFT,WONK,opsz,wght.ttf') format('truetype');
+  src: url('./Fraunces-Variable.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -18,7 +18,7 @@
 
 @font-face {
   font-family: 'Fraunces';
-  src: url('./Fraunces-Italic-VariableFont_SOFT,WONK,opsz,wght.ttf') format('truetype');
+  src: url('./Fraunces-Italic-Variable.woff2') format('woff2');
   font-weight: 100 900;
   font-style: italic;
   font-display: swap;
@@ -26,7 +26,7 @@
 
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('./JetBrainsMono-VariableFont_wght.ttf') format('truetype');
+  src: url('./JetBrainsMono-Variable.woff2') format('woff2');
   font-weight: 100 800;
   font-style: normal;
   font-display: swap;
@@ -34,7 +34,7 @@
 
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('./JetBrainsMono-Italic-VariableFont_wght.ttf') format('truetype');
+  src: url('./JetBrainsMono-Italic-Variable.woff2') format('woff2');
   font-weight: 100 800;
   font-style: italic;
   font-display: swap;

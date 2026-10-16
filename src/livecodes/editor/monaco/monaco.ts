@@ -381,14 +381,23 @@ export const createEditor = async (options: EditorOptions): Promise<CodeEditor> 
   };
   createScriptModel();
 
+  // any TS model wakes Monaco's TypeScript worker (~1.4 MB), so only create it for JS/TS
   const addDeclarations = () => {
-    if (editorId !== 'script') return;
+    if (editorId !== 'script' && editorId !== 'tests') return;
+    if (
+      editorId === 'script' &&
+      !['javascript', 'typescript'].includes(mapLanguage(language, 'monaco'))
+    ) {
+      return;
+    }
+    const declarationsUri = monaco.Uri.parse('file:///declarations.d.ts');
+    if (monaco.editor.getModel(declarationsUri)) return;
     const declarations = `
     declare module 'https://*';
     declare module 'data:*';
     declare module './*';
     `;
-    getOrCreateModel(declarations, undefined, monaco.Uri.parse('file:///declarations.d.ts'));
+    getOrCreateModel(declarations, undefined, declarationsUri);
   };
   addDeclarations();
 
@@ -415,6 +424,7 @@ export const createEditor = async (options: EditorOptions): Promise<CodeEditor> 
     const valueToInsert = value ?? editor.getValue();
     loadMonacoLanguage(lang).then(() => {
       setModel(editor, valueToInsert, language);
+      addDeclarations();
     });
   };
 
