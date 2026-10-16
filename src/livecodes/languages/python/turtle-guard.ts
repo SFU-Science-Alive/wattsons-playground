@@ -23,9 +23,15 @@ def _patch(tg):
             if state['done']:
                 err = RuntimeError("${turtleDoneHint}")
                 # Start the traceback at the caller, so no guard frame shows.
-                b = window.__BRYTHON__
-                setattr(err, '$frame_obj', b.frame_obj.prev)
-                setattr(err, '$linenums', b.make_linenums(b.frame_obj.prev))
+                # ponytail: uses Brython 3.12.4 internals ($frame_obj, make_linenums);
+                # if a Brython upgrade moves them, the plain error (with the guard
+                # frame) is raised instead. Upgrade path: a Brython traceback API.
+                try:
+                    b = window.__BRYTHON__
+                    setattr(err, '$frame_obj', b.frame_obj.prev)
+                    setattr(err, '$linenums', b.make_linenums(b.frame_obj.prev))
+                except Exception:
+                    pass
                 raise err
             return fn(*a, **k)
         return wrapped
