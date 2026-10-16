@@ -7,6 +7,17 @@ import { turtleGuardScript } from './turtle-guard';
 const brythonUrl = brythonBaseUrl + 'brython.min.js';
 const stdlibUrl = brythonBaseUrl + 'brython_stdlib.js';
 
+// Brython 3.12.4 logs console.info("upgrade needed") from its IndexedDB stdlib cache
+// (onupgradeneeded) on every run, which shows in the camper Console (#569). Turning the
+// cache off skips that code; the stdlib then loads from brython_stdlib.js as usual.
+export const brythonOptionsScript = `
+(function () {
+  var o = document.createElement('brython-options');
+  o.setAttribute('indexeddb', 'false');
+  document.head.appendChild(o);
+})();
+`;
+
 export const python: LanguageSpecs = {
   name: 'python',
   title: 'Python',
@@ -19,7 +30,7 @@ export const python: LanguageSpecs = {
       const stdlib = autoloadStdlib !== false && compiled.match(importsPattern) ? [stdlibUrl] : [];
       return [brythonUrl, ...stdlib];
     },
-    inlineScript: turtleGuardScript,
+    inlineScript: brythonOptionsScript + turtleGuardScript,
     scriptType: 'text/python',
     compiledCodeLanguage: 'python',
   },

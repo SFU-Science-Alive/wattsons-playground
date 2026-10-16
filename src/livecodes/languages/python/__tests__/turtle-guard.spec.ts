@@ -1,4 +1,4 @@
-import { python } from '../lang-python';
+import { brythonOptionsScript, python } from '../lang-python';
 import { turtleDoneHint, turtleGuardPython, turtleGuardScript } from '../turtle-guard';
 
 describe('python turtle guard (#459)', () => {
@@ -7,7 +7,9 @@ describe('python turtle guard (#459)', () => {
   });
 
   test('is the python compiler inline script', () => {
-    expect(python.compiler).toMatchObject({ inlineScript: turtleGuardScript });
+    expect(python.compiler).toMatchObject({
+      inlineScript: brythonOptionsScript + turtleGuardScript,
+    });
   });
 
   test('adds one text/python script to the head', () => {
@@ -26,5 +28,20 @@ describe('python turtle guard (#459)', () => {
   test('wraps done and mainloop, and leaves exitonclick and bye alone', () => {
     expect(turtleGuardPython).toContain('tg.mainloop = done');
     expect(turtleGuardPython).toContain("_SKIP = ('done', 'mainloop', 'exitonclick', 'bye')");
+  });
+
+  test('turns off the Brython IndexedDB cache that logs "upgrade needed" (#569)', () => {
+    document.head.innerHTML = '';
+    // eslint-disable-next-line no-new-func
+    new Function(brythonOptionsScript)();
+    const el = document.head.querySelector('brython-options') as HTMLElement;
+    expect(el.getAttribute('indexeddb')).toBe('false');
+  });
+
+  test('starts the traceback at the caller, not the wrapper (#568)', () => {
+    expect(turtleGuardPython).toContain("setattr(err, '$frame_obj', b.frame_obj.prev)");
+    expect(turtleGuardPython).toContain(
+      "setattr(err, '$linenums', b.make_linenums(b.frame_obj.prev))",
+    );
   });
 });
