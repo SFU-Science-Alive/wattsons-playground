@@ -37,4 +37,11 @@ describe('python turtle guard (#459)', () => {
     const el = document.head.querySelector('brython-options') as HTMLElement;
     expect(el.getAttribute('indexeddb')).toBe('false');
   });
+
+  test('starts the traceback at the caller, not the wrapper (#568)', () => {
+    expect(turtleGuardPython).toContain("setattr(err, '$frame_obj', b.frame_obj.prev)");
+    expect(turtleGuardPython).toContain(
+      "setattr(err, '$linenums', b.make_linenums(b.frame_obj.prev))",
+    );
+  });
 });

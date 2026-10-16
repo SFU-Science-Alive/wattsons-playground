@@ -6,7 +6,8 @@
 // Runs as its own Brython script (its own line numbers), ahead of the student's
 // code. It patches turtle up front because Brython ignores a replaced
 // builtins.__import__. Only when the stdlib is loaded (the student has an import),
-// so a program with no imports never fetches turtle. Brython's module-level
+// so a program with no imports never fetches turtle. The error's traceback is
+// started at the caller (Brython's $frame_obj), so no guard frame shows (#568). Brython's module-level
 // mainloop() only warns and draws nothing, so it is mapped to done().
 export const turtleDoneHint = "Lines after turtle.done() don't run. Move them above it.";
 
@@ -20,7 +21,18 @@ def _patch(tg):
     def guard(fn):
         def wrapped(*a, **k):
             if state['done']:
-                raise RuntimeError("${turtleDoneHint}")
+                err = RuntimeError("${turtleDoneHint}")
+                # Start the traceback at the caller, so no guard frame shows.
+                # ponytail: uses Brython 3.12.4 internals ($frame_obj, make_linenums);
+                # if a Brython upgrade moves them, the plain error (with the guard
+                # frame) is raised instead. Upgrade path: a Brython traceback API.
+                try:
+                    b = window.__BRYTHON__
+                    setattr(err, '$frame_obj', b.frame_obj.prev)
+                    setattr(err, '$linenums', b.make_linenums(b.frame_obj.prev))
+                except Exception:
+                    pass
+                raise err
             return fn(*a, **k)
         return wrapped
     for cls, names in ((tg.Turtle, tg._tg_turtle_functions), (tg.Screen, tg._tg_screen_functions)):
