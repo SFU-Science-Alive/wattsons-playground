@@ -279,7 +279,9 @@ const loadStyles = () =>
         ].map((url) => loadStylesheet(url, undefined, '#app-styles')),
       );
 
-let lastRun = { time: 0, result: '' };
+// Wattson (#570): only the newest full reload posts its result. Upstream skipped a result
+// equal to the last one within 500 ms, which left a fresh frame blank when Run followed init.
+let iframeLoadId = 0;
 const createIframe = (container: HTMLElement, result = '', service = sandboxService) =>
   new Promise((resolve, reject) => {
     if (!container) {
@@ -351,16 +353,16 @@ const createIframe = (container: HTMLElement, result = '', service = sandboxServ
     } else {
       // full page reload
       let loaded = false;
+      const loadId = ++iframeLoadId;
       eventsManager.addEventListener(iframe, 'load', function onload() {
         eventsManager.removeEventListener(iframe, 'load', onload);
 
-        if (!result || loaded || (lastRun.result === result && Date.now() - lastRun.time < 500)) {
+        if (!result || loaded || loadId !== iframeLoadId) {
           resolve('loaded');
           return; // prevent infinite loop
         }
 
         iframe.contentWindow?.postMessage({ result }, service.getOrigin());
-        lastRun = { time: Date.now(), result };
         loaded = true;
         resolve('loaded');
       });
@@ -897,7 +899,7 @@ const changeLanguage = async (language: Language, value?: string, isUpdate = fal
 const registerRun = (editorId: EditorId, editors: Editors) => {
   const editor = editors[editorId];
   editor.addKeyBinding('run', editor.keyCodes.ShiftEnter, async () => {
-    await run();
+    await runWhenReady();
   });
 };
 
@@ -1291,6 +1293,33 @@ const run = async (editorId?: EditorId, runTests?: boolean) => {
     document.dispatchEvent(runEvent);
     parent.dispatchEvent(runEvent);
   }
+};
+
+// Wattson (#570): a user Run before init settles would be overwritten by init's own
+// createIframe/applyConfig. Wait for init (success or failure), then run once; several
+// early presses share one promise. If autoupdate is on, init's own deferred run covers it.
+let initSettled = false;
+let settleInit: () => void = () => undefined;
+const initSettledPromise = new Promise<void>((resolve) => {
+  settleInit = () => {
+    initSettled = true;
+    resolve();
+  };
+});
+let earlyRun: Promise<void> | undefined;
+const runWhenReady = async () => {
+  if (initSettled) {
+    await run();
+    return;
+  }
+  setLoading(true);
+  earlyRun ??= initSettledPromise.then(async () => {
+    if (getConfig().autoupdate) return;
+    // let applyConfig's compiler.load().then(setLoading(false)) fire before we start
+    await compiler.load(getEditorLanguages(), getConfig()).catch(() => undefined);
+    await run();
+  });
+  await earlyRun;
 };
 
 const runTests = () => run(/* editorId= */ undefined, /* runTests= */ true);
@@ -2770,7 +2799,7 @@ const handleCommandMenu = async () => {
 const handleRunButton = () => {
   const handleRun = async () => {
     split?.show('output');
-    await run();
+    await runWhenReady();
   };
   eventsManager.addEventListener(UI.getRunButton(), 'click', handleRun);
 };
@@ -5435,13 +5464,15 @@ const initializePlayground = async (
     configUrl: params.config,
     template: params.template,
     importUrl: Object.keys(codeImportConfig).length > 0 ? '' : importUrl, // do not re-import compressed code
-  }).then(async (contentImported) => {
-    if (!contentImported) {
-      loadSelectedScreen();
-      await applyConfig(getConfig(), /* reload = */ false);
-    }
-    initialized = true;
-  });
+  })
+    .then(async (contentImported) => {
+      if (!contentImported) {
+        loadSelectedScreen();
+        await applyConfig(getConfig(), /* reload = */ false);
+      }
+      initialized = true;
+    })
+    .finally(settleInit);
   configureEmmet(getConfig());
   setAppLanguage();
 };
@@ -5634,7 +5665,7 @@ const createApi = (): API => {
   const call = <T>(fn: () => Promise<T>) => (!isDestroyed ? fn() : reject());
   const callSync = <T>(fn: () => T) => (!isDestroyed ? fn() : throwError());
   return {
-    run: () => call(() => run()),
+    run: () => call(() => runWhenReady()),
     format: (allEditors) => call(() => format(allEditors)),
     getShareUrl: (shortUrl) => call(() => apiGetShareUrl(shortUrl)),
     getConfig: (contentOnly) => call(() => apiGetConfig(contentOnly)),
