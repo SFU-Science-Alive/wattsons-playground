@@ -2,6 +2,7 @@ import type { LanguageSpecs } from '../../models';
 import { getLanguageCustomSettings } from '../../utils/utils';
 import { brythonBaseUrl, codeMirrorBaseUrl, monacoLanguagesBaseUrl } from '../../vendors';
 import { pythonFormatter } from '../python-wasm/lang-python-wasm';
+import { turtleGuardScript } from './turtle-guard';
 
 const brythonUrl = brythonBaseUrl + 'brython.min.js';
 const stdlibUrl = brythonBaseUrl + 'brython_stdlib.js';
@@ -18,6 +19,7 @@ export const python: LanguageSpecs = {
       const stdlib = autoloadStdlib !== false && compiled.match(importsPattern) ? [stdlibUrl] : [];
       return [brythonUrl, ...stdlib];
     },
+    inlineScript: turtleGuardScript,
     scriptType: 'text/python',
     compiledCodeLanguage: 'python',
   },

@@ -230,8 +230,7 @@ export const handleScrollPosition = () => {
   }
 };
 
-export const TURTLE_FIT_CSS =
-  '#turtle-canvas{max-width:100% !important;height:auto !important;display:block}';
+export const TURTLE_FIT_CSS = '#turtle-canvas{position:fixed;display:block;margin:0}';
 
 export const fitTurtleCanvas = (svg: Element | null): void => {
   if (!svg) return;
@@ -239,6 +238,19 @@ export const fitTurtleCanvas = (svg: Element | null): void => {
   const h = Number(svg.getAttribute('height'));
   if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return;
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const pw = svg.ownerDocument.defaultView?.innerWidth ?? 0;
+  const ph = svg.ownerDocument.defaultView?.innerHeight ?? 0;
+  if (pw <= 0 || ph <= 0) return;
+  // largest size that fits the pane, keeping the drawing's shape (grows and shrinks)
+  const scale = Math.min(pw / w, ph / h);
+  const sw = w * scale;
+  const sh = h * scale;
+  const style = (svg as SVGElement).style;
+  // 'important' beats Brython's SMIL <animate attributeName="width"> that pins the width
+  style.setProperty('width', `${sw}px`, 'important');
+  style.setProperty('height', `${sh}px`, 'important');
+  style.setProperty('left', `${(pw - sw) / 2}px`, 'important');
+  style.setProperty('top', `${(ph - sh) / 2}px`, 'important');
 };
 
 export const handleTurtleFit = (doc: Document = document): MutationObserver => {
@@ -258,5 +270,10 @@ export const handleTurtleFit = (doc: Document = document): MutationObserver => {
     attributes: true,
     attributeFilter: ['width', 'height'],
   });
+  const refit = () => fitTurtleCanvas(doc.getElementById('turtle-canvas'));
+  doc.defaultView?.addEventListener('resize', refit);
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(refit).observe(doc.documentElement);
+  }
   return observer;
 };
