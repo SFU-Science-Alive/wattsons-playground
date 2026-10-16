@@ -5464,13 +5464,15 @@ const initializePlayground = async (
     configUrl: params.config,
     template: params.template,
     importUrl: Object.keys(codeImportConfig).length > 0 ? '' : importUrl, // do not re-import compressed code
-  }).then(async (contentImported) => {
-    if (!contentImported) {
-      loadSelectedScreen();
-      await applyConfig(getConfig(), /* reload = */ false);
-    }
-    initialized = true;
-  }).finally(settleInit);
+  })
+    .then(async (contentImported) => {
+      if (!contentImported) {
+        loadSelectedScreen();
+        await applyConfig(getConfig(), /* reload = */ false);
+      }
+      initialized = true;
+    })
+    .finally(settleInit);
   configureEmmet(getConfig());
   setAppLanguage();
 };
