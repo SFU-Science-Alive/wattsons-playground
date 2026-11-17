@@ -139,6 +139,7 @@ import {
   type StorageItem,
   type Stores,
 } from './storage';
+import { clearPending, newerPending, readPending, writePending } from './storage/activity-pending';
 import { getStarterTemplates, getTemplate } from './templates';
 import { createToolsPane } from './toolspane';
 import { createTypeLoader, getDefaultTypes } from './types';
@@ -231,6 +232,12 @@ let resultLanguages: Language[] = [];
 let projectId: string;
 let isSaved = true;
 let changingContent = false;
+// Edits not yet in a save (#332): bumped on every editor change, caught up by
+// each autosave, so a page that hides can tell whether it still owes one.
+let editSeq = 0;
+let savedSeq = 0;
+// True once the activity store is open, so its edits may be kept (#208, #300).
+let activitySaving = false;
 let consoleInputCodeCompletion: any;
 let starterTemplates: Template[];
 let initialized = false;
@@ -2626,6 +2633,7 @@ const handleChangeLanguage = () => {
 
 const handleChangeContent = () => {
   const contentChanged = async (editorId: EditorId, loading: boolean) => {
+    const seq = editSeq;
     updateConfig();
     const config = getConfig();
     addConsoleInputCodeCompletion();
@@ -2652,6 +2660,8 @@ const handleChangeContent = () => {
 
     if (isAutosave()) {
       await save(/* notify = */ false, /* setTitle = */ true, /* isAutoSave = */ true);
+      savedSeq = Math.max(savedSeq, seq);
+      clearSavedPending();
     }
 
     dispatchChangeEvent();
@@ -2667,8 +2677,43 @@ const handleChangeContent = () => {
     );
 
   (Object.keys(editors) as EditorId[]).forEach((editorId) => {
+    editors[editorId].onContentChanged(() => {
+      editSeq++;
+    });
     editors[editorId].onContentChanged(debouncecontentChanged(editorId));
     editors[editorId].onContentChanged(setSavedStatus);
+  });
+};
+
+// Once every edit is in a save, the localStorage copy is no longer needed.
+const clearSavedPending = () => {
+  if (params.activityId && savedSeq >= editSeq) clearPending(params.activityId);
+};
+
+// Writes an autosave that is still waiting out its delay (#332). Typing in the
+// last 1.5 s before a tab closes, navigates away or hides used to be lost.
+// The localStorage copy is written first and at once: a page that is being
+// unloaded may never finish the async IndexedDB save that follows it.
+const flushAutosave = async () => {
+  if (isDestroyed || !isAutosave() || savedSeq >= editSeq) return;
+  const seq = editSeq;
+  updateConfig();
+  if (activitySaving && params.activityId) {
+    writePending(params.activityId, getContentConfig(getConfig()));
+  }
+  await save(/* notify = */ false, /* setTitle = */ true, /* isAutoSave = */ true);
+  savedSeq = Math.max(savedSeq, seq);
+  clearSavedPending();
+};
+
+// Hidden covers a tab switched away, a laptop lid shut, a closed tab and the
+// embedding page closing; `pagehide` covers navigation.
+const handleFlushOnHide = () => {
+  eventsManager.addEventListener(document, 'visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void flushAutosave();
+  });
+  eventsManager.addEventListener(window, 'pagehide', () => {
+    void flushAutosave();
   });
 };
 
@@ -5051,6 +5096,7 @@ const basicHandlers = () => {
   handleSelectEditor();
   handleChangeLanguage();
   handleChangeContent();
+  handleFlushOnHide();
   // Setup keyboard shortcuts with dependency injection
   handleKeyboardShortcuts({
     eventsManager,
@@ -5413,10 +5459,12 @@ const initializePlayground = async (
       : isSaveAllowedParent(embedParentOrigin);
   if (params.activityId && activitySaveAllowed) {
     await initializeActivityStore(stores);
+    activitySaving = true;
   }
 
   const activityId = params.activityId;
   let activityConfig: ContentConfig | undefined;
+  let pending: ReturnType<typeof readPending> = null;
   if (activityId) {
     const existing = await stores.projects?.getItem(activityId);
     if (existing) {
@@ -5425,11 +5473,25 @@ const initializePlayground = async (
     } else {
       projectId = activityId; // first save for this activity will create it under this id
     }
+    // Edits the last page kept at unload, if they are newer than its save (#332).
+    if (activitySaving) {
+      pending = newerPending(readPending(activityId), existing?.lastModified);
+      if (pending) activityConfig = { ...(activityConfig ?? {}), ...pending.config };
+      else clearPending(activityId);
+    }
   }
 
   const userConfig = stores.userConfig?.getValue() ?? {};
   const builtConfig = buildConfig({ ...getConfig(), ...userConfig, ...initialConfig });
   setConfig(activityConfig ? { ...builtConfig, ...getContentConfig(activityConfig) } : builtConfig);
+  if (activityId && pending) {
+    try {
+      await stores.projects?.updateItem(activityId, buildConfig(getConfig()));
+      clearPending(activityId);
+    } catch {
+      // kept in localStorage for the next load
+    }
+  }
   configureModes({ config: getConfig(), isEmbed, isLite });
   compiler = (window as any).compiler = await getCompiler({
     config: getConfig(),
